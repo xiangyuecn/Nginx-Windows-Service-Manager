@@ -55,15 +55,21 @@ if not "%msg%"=="" echo -------%msg%-------
 
 set msg=
 set datetime=%date:~0,10% %time:~0,8%
-set isRun=false
-set isInstall=true
-sc query %svs%|findstr /c:"指定的服务未安装">nul&&set isInstall=false
-sc query %svs%|findstr /ic:"run">nul&&set isRun=true
+
+set stack=mainQuerySrvEnd
+set stackErr=0
+goto querySrv
+:mainQuerySrvEnd
+set stack=
 
 if %isRun%==true (
 	echo %datetime% %svs%服务运行中...
 ) else (
-	echo %datetime% %svs%服务未运行xxx
+	if %isInstall%==true (
+		echo %datetime% %svs%服务未运行!
+	) else (
+		echo %datetime% %svs%服务未安装，请先安装服务!
+	)
 )
 
 echo 可以操作：
@@ -118,6 +124,13 @@ echo              DEF(标识) 宏名称=宏内容 (标识)END
 echo              宏名称支持^&、^<、^>、/、_、-、空格、换行、字母、数字、文字组合，宏内容可以多行
 pause
 goto step_end
+
+:querySrv
+	set isRun=false
+	set isInstall=true
+	sc query %svs%|findstr /c:"指定的服务未安装">nul&&set isInstall=false
+	sc query %svs%|findstr /ic:"run">nul&&set isRun=true
+	goto step_end
 
 :step_run
 	if not %isRun%==true (
@@ -270,7 +283,20 @@ goto step_end
 	set stack=
 
 	%svsInstall%.exe install
-	set msg=已执行安装，但状态不确认
+	
+	set stack=step_install_querySrvEnd
+	set stackErr=0
+	goto querySrv
+	:step_install_querySrvEnd
+	set stack=
+	
+	if %isInstall%==true (
+		set msg=服务已安装
+	) else (
+		set msg=服务安装失败
+		echo 服务安装失败
+		pause
+	)
 	goto step_end
 
 :step_uninstall
@@ -292,12 +318,24 @@ goto step_end
 			:step_uninstall_stop
 			set stack=
 			
+			if not %stackErr%==0 set msg=%msg%！！卸载失败！！
 			if %stackErr%==0 (
 				echo 正在卸载...
 				%svsInstall%.exe uninstall
-				set msg=已执行卸载，但状态不确认
-			) else (
-				set msg=%msg%！！卸载失败！！
+				
+				set stack=step_uninstall_querySrvEnd
+				set stackErr=0
+				goto querySrv
+				:step_uninstall_querySrvEnd
+				set stack=
+				
+				if %isInstall%==true (
+					set msg=服务卸载失败
+					echo 服务卸载失败
+					pause
+				) else (
+					set msg=服务已卸载
+				)
 			)
 		)
 	)
