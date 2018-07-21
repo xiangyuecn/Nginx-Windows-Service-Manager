@@ -1,0 +1,126 @@
+DEF <StaticExp>=\.(?:png|js|css|ttf|woff|eot|svg|xml|html|jpg|gif|swf)$ END
+DEF <Crt>=ssl_certificate crt/haozgzlocal.crt;
+        ssl_certificate_key crt/haozgzlocal.key; END
+
+
+###########################
+#请勿直接修改nginx.conf文件，此文件要由nginx.txt通过重建日志生成
+#更新时间{y}-{m}-{d} {h}:{M}:{s}
+###########################
+worker_processes  1;
+
+events {
+    worker_connections  2048;
+}
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+	
+	#content-type编码
+	charset       utf-8;
+	
+	#禁用访问日志
+	access_log    off;
+	#日志格式
+	log_format    full
+					'$request_method $status $time_local $request_time'
+					's $remote_addr'
+					' >$request_length <$bytes_sent'
+					' "$scheme://$host:$server_port$request_uri"'
+					' "$http_user_agent"';
+	#错误日志级别
+	error_log     crit;
+
+    sendfile on;
+	#保持连接超时
+    keepalive_timeout 10;
+	#关闭显示版本
+	server_tokens     off;
+	
+	#文件缓存
+	open_file_cache max=10000 inactive=60;
+	open_file_cache_min_uses 5;
+	open_file_cache_valid 60;
+	open_file_cache_errors on;
+	
+	#连续发送数据到客户端超时
+	send_timeout 5;
+	#客户端连续发送数据超时
+	client_body_timeout 5;
+	#客户端发送请求头超时
+	client_header_timeout 5;
+	#客户端可以发送最大数据
+	client_max_body_size 5m;
+	
+	#限制客户端连接
+	limit_conn_zone $binary_remote_addr zone=addr:5m;
+	limit_conn addr 20;
+	
+	#gzip
+	gzip on;
+	gzip_comp_level   4;
+	gzip_min_length   1k;
+	gzip_proxied      any;
+	##text/html永远会压缩
+	gzip_types text/plain text/css text/xml application/xml image/svg+xml application/x-javascript application/javascript;
+	
+	
+	#集群设置
+	upstream nginx.com{
+		server localhost:8901;
+		server localhost:8902;
+		server localhost:8903;
+		keepalive 100;
+	}
+	
+	server_names_hash_bucket_size 64;
+    server {
+        listen 80;
+        listen 443 ssl;
+		<Crt>
+
+		location /{
+			proxy_pass            http://nginx.com;
+			proxy_connect_timeout 1;
+			proxy_set_header      Web-Real-Scheme $scheme;
+			proxy_set_header      Web-Real-Host $http_host;
+			proxy_set_header      Web-Real-Port $server_port;
+			proxy_set_header      Web-Real-IP $remote_addr;
+			
+			access_log "logs/access_web_{y}-{m}-{d}.log" full buffer=32K;
+        }
+		location ~*^/static/.*<StaticExp> {
+			add_header Is-Web-Static 1;
+			
+			root D:/Works/jiebian_ui;
+			expires 1y;
+			access_log "logs/access_web_static_{y}-{m}-{d}.log" full buffer=32K;
+		}
+		location =/nginx-status {
+			stub_status on;
+			
+			allow 127.0.0.1;
+			deny all;
+		}
+    }
+	
+	server {
+		listen 80;
+        listen 443 ssl;
+		<Crt>
+		server_name  static.haozgz-local.com;
+		
+		location /{
+			deny all;
+		}
+		location ~*<StaticExp> {
+			add_header Is-Static 1;
+			add_header Access-Control-Allow-Origin *;
+			
+			root D:/Works/jiebian_ui/static;
+			expires 1y;
+			access_log "logs/access_static_{y}-{m}-{d}.log" full buffer=32K;
+		}
+	}
+}
