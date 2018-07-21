@@ -19,7 +19,7 @@ xiangyuecn编写，学习nginx之用，还没弄懂怎么配置nginx，先把安
 配置模板文件格式处理、日期替换更新脚本
 
 #### winsw1.9.exe
-windows服务安装器，用于把nginx安装为系统服务，下载地址：http://central.maven.org/maven2/com/sun/winsw/winsw/1.9/ ，配置介绍：https://github.com/kohsuke/winsw/blob/master/doc/xmlConfigFile.md。
+windows服务安装器，用于把nginx安装为系统服务，下载地址：http://central.maven.org/maven2/com/sun/winsw/winsw/1.9/ ，配置介绍：https://github.com/kohsuke/winsw/blob/master/doc/xmlConfigFile.md 。
 
 #### PsExec.exe
 用system用户身份运行start.bat；双击打开start.bat时的身份默认时Admin，此时并不能管理system身份的nginx；start.bat会通过PsExec.exe跳转一次执行，用户身份就变成了system。
